@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Plus, Trash2, Save, Clapperboard, Film, Tv, Radio, MonitorPlay, FileJson, Link } from 'lucide-react';
-import { db, collection, addDoc, serverTimestamp, deleteDoc, doc } from '../firebase';
 import { MediaItem } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { Loader2, Sparkles, Languages } from 'lucide-react';
@@ -11,9 +10,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 interface AdminPanelProps {
   onClose: () => void;
   existingMedia: MediaItem[];
+  onAddMedia: (media: Partial<MediaItem>) => void;
+  onDeleteMedia: (id: string) => void;
 }
 
-export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) {
+export default function AdminPanel({ onClose, existingMedia, onAddMedia, onDeleteMedia }: AdminPanelProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [isImportingM3U, setIsImportingM3U] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -39,9 +40,9 @@ export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'media'), {
+      onAddMedia({
         ...formData,
-        createdAt: serverTimestamp()
+        createdAt: new Date().toISOString() as any
       });
       setIsAdding(false);
       setFormData({
@@ -60,7 +61,7 @@ export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) 
       alert('Filme/Série adicionado com sucesso!');
     } catch (error: any) {
       console.error("Error adding media:", error);
-      alert('Erro ao adicionar: ' + (error.message || 'Verifique as permissões ou os dados.'));
+      alert('Erro ao adicionar.');
     }
   };
 
@@ -108,7 +109,7 @@ export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) 
   const confirmDelete = async () => {
     if (!deletingId) return;
     try {
-      await deleteDoc(doc(db, 'media', deletingId));
+      onDeleteMedia(deletingId);
       setDeletingId(null);
     } catch (error) {
       console.error("Error deleting media:", error);
@@ -195,9 +196,9 @@ export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) 
         let count = 0;
         setImportProgress({ current: 0, total: itemsToImport.length });
         for (const item of itemsToImport) {
-          await addDoc(collection(db, 'media'), {
+          onAddMedia({
             ...item,
-            createdAt: serverTimestamp()
+            createdAt: new Date().toISOString() as any
           });
           count++;
           setImportProgress({ current: count, total: itemsToImport.length });
@@ -229,14 +230,14 @@ export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) 
     try {
       let count = 0;
       for (const ch of defaultChannels) {
-        await addDoc(collection(db, 'media'), {
+        onAddMedia({
           ...ch,
           type: 'live',
           year: '2024',
           rating: '5.0',
           description: 'Canal público padrão.',
           backdropUrl: ch.imageUrl,
-          createdAt: serverTimestamp()
+          createdAt: new Date().toISOString() as any
         });
         count++;
       }
@@ -286,7 +287,7 @@ export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) 
               <button
                 onClick={async () => {
                   try {
-                    await addDoc(collection(db, 'media'), {
+                    onAddMedia({
                       title: 'Pecadores',
                       description: 'Do roteirista e diretor Ryan Coogler e estrelado por Michael B. Jordan, Pecadores é um novo thriller de terror original.',
                       videoUrl: 'https://www.dropbox.com/scl/fi/vkctgfykm0z4tlq64lx3c/Pecadores-Dublado.mp4?rlkey=bx0gprig6owrbpdrtx5mbpkop&st=85fad6xz&raw=1',
@@ -298,12 +299,12 @@ export default function AdminPanel({ onClose, existingMedia }: AdminPanelProps) 
                       year: '2025',
                       rating: '5.0',
                       duration: '2h 10m',
-                      createdAt: serverTimestamp()
+                      createdAt: new Date().toISOString() as any
                     });
                     alert('Filme "Pecadores" adicionado com sucesso!');
                   } catch (error: any) {
                     console.error("Error adding Pecadores:", error);
-                    alert('Erro ao adicionar: ' + (error.message || 'Verifique as permissões.'));
+                    alert('Erro ao adicionar.');
                   }
                 }}
                 className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-500 transition-colors"

@@ -37,22 +37,6 @@ import {
 } from 'lucide-react';
 import { HERO_CONTENT, SERIES_HERO, CONTINUE_WATCHING, ALL_MEDIA as STATIC_MEDIA } from './constants';
 import { MediaItem, UserProfile } from './types';
-import { 
-  auth, 
-  db, 
-  googleProvider, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged, 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  doc, 
-  getDoc, 
-  setDoc,
-  updateDoc
-} from './firebase';
 import AdminPanel from './components/AdminPanel';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -69,10 +53,14 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allMedia, setAllMedia] = useState<MediaItem[]>(STATIC_MEDIA);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(true);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   
   const [activeTopTab, setActiveTopTab] = useState<TopTab>('Filmes');
+  const [authEmail, setAuthEmail] = useState('marcossilva192024@gmail.com');
+  const [authPassword, setAuthPassword] = useState('123456');
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [authError, setAuthError] = useState('');
   const [activeBottomTab, setActiveBottomTab] = useState<BottomTab>('Início');
   const [myList, setMyList] = useState<Set<string>>(new Set());
   const [downloadedItems, setDownloadedItems] = useState<Set<string>>(new Set());
@@ -182,68 +170,38 @@ export default function App() {
 
   // Auth Listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          const profile = userDoc.data() as UserProfile;
-          setUserProfile(profile);
-          if (profile.myList) setMyList(new Set(profile.myList));
-        } else {
-          // Create profile for new user
-          const newProfile: UserProfile = {
-            uid: currentUser.uid,
-            email: currentUser.email || '',
-            displayName: currentUser.displayName || '',
-            photoURL: currentUser.photoURL || '',
-            role: currentUser.email === 'marcossilva192024@gmail.com' ? 'admin' : 'user',
-            myList: []
-          };
-          await setDoc(doc(db, 'users', currentUser.uid), newProfile);
-          setUserProfile(newProfile);
-        }
-      } else {
-        setUserProfile(null);
-        setMyList(new Set());
-      }
-      setIsAuthReady(true);
-    });
-    return () => unsubscribe();
+    setIsAuthReady(true);
   }, []);
 
   // Real-time Media Fetching
   useEffect(() => {
-    const q = query(collection(db, 'media'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const mediaFromDb = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as MediaItem[];
-      
-      // Merge static media with DB media
-      setAllMedia([...mediaFromDb, ...STATIC_MEDIA]);
-    }, (error) => {
-      console.error("Error fetching media:", error);
-    });
-    return () => unsubscribe();
+    setAllMedia(STATIC_MEDIA);
   }, []);
 
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login error:", error);
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    if (authEmail === 'marcossilva192024@gmail.com' && authPassword === '123456') {
+      const mockUser = { uid: 'admin-123', email: authEmail };
+      setUser(mockUser);
+      setUserProfile({
+        uid: mockUser.uid,
+        email: mockUser.email,
+        displayName: 'Marcos Silva',
+        photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Marcos',
+        role: 'admin',
+        myList: []
+      });
+    } else {
+      setAuthError('E-mail ou senha incorretos.');
     }
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setActiveBottomTab('Início');
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+    setUser(null);
+    setUserProfile(null);
+    setMyList(new Set());
+    setActiveBottomTab('Início');
   };
 
   const toggleMyList = async (id: string) => {
@@ -254,14 +212,6 @@ export default function App() {
     else nextList.add(id);
     
     setMyList(nextList);
-    
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        myList: Array.from(nextList)
-      });
-    } catch (error) {
-      console.error("Error updating list:", error);
-    }
   };
 
   const toggleDownload = (id: string) => {
@@ -1131,6 +1081,18 @@ export default function App() {
     );
   };
 
+  const handleAddMedia = (media: Partial<MediaItem>) => {
+    const newItem = {
+      ...media,
+      id: Date.now().toString()
+    } as MediaItem;
+    setAllMedia(prev => [newItem, ...prev]);
+  };
+
+  const handleDeleteMedia = (id: string) => {
+    setAllMedia(prev => prev.filter(m => m.id !== id));
+  };
+
   const renderLogin = () => (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
       <motion.div 
@@ -1142,14 +1104,46 @@ export default function App() {
           <Clapperboard className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-4xl font-black text-white mb-4 tracking-tight">CINEFLOW</h1>
-        <p className="text-zinc-400 mb-12">Sua experiência premium de streaming começa aqui.</p>
+        <p className="text-zinc-400 mb-8">Sua experiência premium de streaming começa aqui.</p>
         
+        <form onSubmit={handleAuth} className="flex flex-col gap-4">
+          <input 
+            type="email" 
+            placeholder="Seu e-mail" 
+            value={authEmail}
+            onChange={(e) => setAuthEmail(e.target.value)}
+            className="w-full px-4 py-4 bg-zinc-900/80 border border-white/10 rounded-2xl text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
+            required
+          />
+          <input 
+            type="password" 
+            placeholder="Sua senha" 
+            value={authPassword}
+            onChange={(e) => setAuthPassword(e.target.value)}
+            className="w-full px-4 py-4 bg-zinc-900/80 border border-white/10 rounded-2xl text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
+            required
+          />
+          
+          {authError && (
+            <p className="text-red-500 text-xs text-center">{authError}</p>
+          )}
+
+          <button 
+            type="submit"
+            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20 mt-2"
+          >
+            {isLoginMode ? 'Entrar' : 'Criar Conta'}
+          </button>
+        </form>
+
         <button 
-          onClick={handleLogin}
-          className="w-full py-4 bg-white text-black rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-gray-200 transition-all"
+          onClick={() => {
+            setIsLoginMode(!isLoginMode);
+            setAuthError('');
+          }}
+          className="w-full mt-6 text-sm text-zinc-400 hover:text-white transition-colors"
         >
-          <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
-          Entrar com Google
+          {isLoginMode ? 'Não tem uma conta? Crie agora.' : 'Já tem uma conta? Entre aqui.'}
         </button>
         
         <p className="mt-8 text-[10px] text-zinc-600 uppercase tracking-widest leading-relaxed">
@@ -1177,6 +1171,8 @@ export default function App() {
             <AdminPanel 
               onClose={() => setShowAdminPanel(false)} 
               existingMedia={allMedia}
+              onAddMedia={handleAddMedia}
+              onDeleteMedia={handleDeleteMedia}
             />
           )}
         </AnimatePresence>
