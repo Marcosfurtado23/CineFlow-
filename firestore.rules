@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: media
+    // Document ID: auto-generated
+    // Fields:
+    //   - id: string (required) - unique identifier
+    //   - title: string (required) - movie/series title
+    //   - description: string (required) - synopsis
+    //   - thumbnail: string (required) - image URL
+    //   - videoUrl: string (required) - video source URL
+    //   - genre: list (required) - categories
+    //   - year: string (required) - release year
+    //   - duration: string (required) - length or seasons
+    //   - rating: string (required) - star rating
+    //   - type: string (required) - 'movie' or 'series'
+    //   - createdAt: timestamp (required) - creation date
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required) - user identifier
+    //   - email: string (required) - user email
+    //   - displayName: string (optional) - user name
+    //   - photoURL: string (optional) - avatar URL
+    //   - role: string (required) - 'admin' or 'user'
+    //   - myList: list (optional) - array of media IDs
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "marcossilva192024@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidMedia(data) {
+      return data.keys().hasAll(['title', 'videoUrl', 'type']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.videoUrl is string && data.videoUrl.size() > 0 &&
+             data.type in ['movie', 'series', 'live', 'novela'];
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 100;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Media Catalog
+    match /media/{mediaId} {
+      allow read: if true; // Publicly readable catalog
+      allow create, update: if isAdmin() && isValidMedia(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
+                    (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) &&
+                    (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+  }
+}

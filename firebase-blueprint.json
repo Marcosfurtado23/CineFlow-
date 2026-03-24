@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "media": {
+      "title": "Media Item",
+      "description": "A movie or series in the catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "genre": { "type": "array", "items": { "type": "string" } },
+        "year": { "type": "string" },
+        "duration": { "type": "string" },
+        "rating": { "type": "string" },
+        "type": { "type": "string", "enum": ["movie", "series"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "videoUrl", "type"]
+    },
+    "users": {
+      "title": "User Profile",
+      "description": "User account information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "myList": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "/media": {
+      "schema": "media",
+      "description": "The global catalog of movies and series"
+    },
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "Individual user profiles and settings"
+    }
+  }
+}
