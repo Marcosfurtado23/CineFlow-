@@ -146,20 +146,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-fullscreen on first interaction
-  useEffect(() => {
-    const enterFullscreen = () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(e => console.log("Fullscreen prevented:", e));
-      }
-      // Remove listener after first interaction
-      document.removeEventListener('click', enterFullscreen);
-    };
-    
-    document.addEventListener('click', enterFullscreen);
-    return () => document.removeEventListener('click', enterFullscreen);
-  }, []);
-
   const handleVideoInteraction = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
