@@ -3,6 +3,8 @@
   "name": "Cineflow - Filmes e Séries",
   "short_name": "Cineflow",
   "description": "Assista aos melhores filmes, séries e canais ao vivo em qualquer lugar.",
+  "lang": "pt-BR",
+  "dir": "ltr",
   "start_url": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
